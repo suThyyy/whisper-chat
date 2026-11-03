@@ -1,0 +1,278 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email is string;
+    }
+
+    function userProfile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function validUserProfile(uid, data) {
+      return signedIn()
+        && uid == request.auth.uid
+        && data.keys().hasAll(['about', 'email', 'name', 'uid'])
+        && data.keys().hasOnly(['about', 'email', 'name', 'uid'])
+        && data.uid == request.auth.uid
+        && data.email == request.auth.token.email
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 100
+        && data.about is string
+        && data.about.size() <= 500;
+    }
+
+    function isChatMember(data) {
+      return signedIn()
+        && data.memberIds.hasAny([request.auth.uid]);
+    }
+
+    function chatAfter(chatId) {
+      return getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
+    }
+
+    function chat(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data;
+    }
+
+    function isMemberOfChat(chatId) {
+      return isChatMember(chat(chatId));
+    }
+
+    function validChatCreate(chatId) {
+      let data = request.resource.data;
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && data.keys().hasAll([
+          'createdBy',
+          'groupAdminIds',
+          'groupName',
+          'lastMessage',
+          'lastUpdated',
+          'memberIds',
+          'schemaVersion',
+          'users'
+        ])
+        && data.keys().hasOnly([
+          'createdBy',
+          'groupAdminIds',
+          'groupName',
+          'lastMessage',
+          'lastUpdated',
+          'memberIds',
+          'schemaVersion',
+          'users'
+        ])
+        && data.createdBy == request.auth.uid
+        && data.schemaVersion == 3
+        && data.lastMessage == null
+        && data.lastUpdated == request.time
+        && data.groupName is string
+        && data.groupName.size() <= 100
+        && data.memberIds is list
+        && data.memberIds.size() >= 1
+        && data.memberIds.size() <= 10
+        && data.memberIds.toSet().size() == data.memberIds.size()
+        && request.auth.uid in data.memberIds
+        && data.users is list
+        && data.users.size() == data.memberIds.size()
+        && data.users[0].uid == request.auth.uid
+        && data.users[0].email == request.auth.token.email
+        && data.groupAdminIds is list
+        && (
+          (data.groupName == '' && data.groupAdminIds.size() == 0)
+          || (data.groupName != '' && data.groupAdminIds == [request.auth.uid])
+        )
+        && getAfter(
+          /databases/$(database)/documents/chats/$(chatId)/members/$(request.auth.uid)
+        ).data.uid == request.auth.uid;
+    }
+
+    function linkedNewMessage(chatId, messageId) {
+      let message = getAfter(
+        /databases/$(database)/documents/chats/$(chatId)/messages/$(messageId)
+      ).data;
+      return message.senderId == request.auth.uid
+        && message.createdAt == request.time;
+    }
+
+    function validChatMessageUpdate(chatId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let lastMessage = request.resource.data.lastMessage;
+      let message = getAfter(
+        /databases/$(database)/documents/chats/$(chatId)/messages/$(lastMessage._id)
+      ).data;
+      return isChatMember(resource.data)
+        && changed.hasOnly(['lastMessage', 'lastUpdated'])
+        && request.resource.data.lastUpdated == request.time
+        && lastMessage is map
+        && lastMessage._id is string
+        && linkedNewMessage(chatId, lastMessage._id)
+        && lastMessage == message;
+    }
+
+    function validMemberDocument(uid, data) {
+      return data.keys().hasAll([
+          'email',
+          'hidden',
+          'lastAccess',
+          'lastMessageId',
+          'uid',
+          'unreadCount'
+        ])
+        && data.keys().hasOnly([
+          'email',
+          'hidden',
+          'lastAccess',
+          'lastMessageId',
+          'uid',
+          'unreadCount'
+        ])
+        && data.uid == uid
+        && data.email is string
+        && data.hidden is bool
+        && (data.lastAccess == null || data.lastAccess is timestamp)
+        && (data.lastMessageId == null || data.lastMessageId is string)
+        && data.unreadCount is int
+        && data.unreadCount >= 0;
+    }
+
+    function validMemberCreate(chatId, uid) {
+      let parent = chatAfter(chatId);
+      let profile = userProfile(uid);
+      return signedIn()
+        && parent.createdBy == request.auth.uid
+        && uid in parent.memberIds
+        && validMemberDocument(uid, request.resource.data)
+        && request.resource.data.email == profile.email
+        && request.resource.data.hidden == false
+        && request.resource.data.lastMessageId == null
+        && request.resource.data.unreadCount == 0
+        && (
+          (uid == request.auth.uid && request.resource.data.lastAccess == request.time)
+          || (uid != request.auth.uid && request.resource.data.lastAccess == null)
+        );
+    }
+
+    function validOwnMemberUpdate(uid) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let hideOnly = changed.hasOnly(['hidden'])
+        && request.resource.data.hidden == true;
+      let markRead = changed.hasOnly(['hidden', 'lastAccess', 'unreadCount'])
+        && request.resource.data.hidden == false
+        && request.resource.data.lastAccess == request.time
+        && request.resource.data.unreadCount == 0;
+      return uid == request.auth.uid
+        && validMemberDocument(uid, request.resource.data)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && (hideOnly || markRead);
+    }
+
+    function validMessageDelivery(chatId, uid) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let messageId = request.resource.data.lastMessageId;
+      let senderUpdate = uid == request.auth.uid
+        && request.resource.data.unreadCount == 0
+        && request.resource.data.lastAccess == request.time;
+      let recipientUpdate = uid != request.auth.uid
+        && request.resource.data.unreadCount == resource.data.unreadCount + 1
+        && request.resource.data.lastAccess == resource.data.lastAccess;
+      return isMemberOfChat(chatId)
+        && validMemberDocument(uid, request.resource.data)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && changed.hasOnly(['hidden', 'lastAccess', 'lastMessageId', 'unreadCount'])
+        && request.resource.data.hidden == false
+        && messageId is string
+        && linkedNewMessage(chatId, messageId)
+        && (senderUpdate || recipientUpdate);
+    }
+
+    function validMessageCreate(chatId, messageId) {
+      let data = request.resource.data;
+      let profile = userProfile(request.auth.uid);
+      return isMemberOfChat(chatId)
+        && data.keys().hasAll([
+          '_id',
+          'createdAt',
+          'image',
+          'senderId',
+          'status',
+          'text',
+          'user',
+          'video'
+        ])
+        && data.keys().hasOnly([
+          '_id',
+          'createdAt',
+          'image',
+          'senderId',
+          'status',
+          'text',
+          'user',
+          'video'
+        ])
+        && data._id == messageId
+        && data._id is string
+        && data._id.size() <= 128
+        && data.createdAt == request.time
+        && data.senderId == request.auth.uid
+        && data.status == 'sent'
+        && data.text is string
+        && data.text.size() <= 10000
+        && (data.image == null || (data.image is string && data.image.size() <= 2048))
+        && (data.video == null || (data.video is string && data.video.size() <= 2048))
+        && data.user is map
+        && data.user.keys().hasAll(['_id', 'avatar', 'name', 'uid'])
+        && data.user.keys().hasOnly(['_id', 'avatar', 'name', 'uid'])
+        && data.user.uid == request.auth.uid
+        && data.user._id == request.auth.token.email
+        && data.user.name == profile.name
+        && data.user.avatar is string
+        && data.user.avatar.size() <= 2048
+        && chatAfter(chatId).lastMessage._id == messageId
+        && chatAfter(chatId).lastUpdated == request.time
+        && getAfter(
+          /databases/$(database)/documents/chats/$(chatId)/members/$(request.auth.uid)
+        ).data.lastMessageId == messageId;
+    }
+
+    match /users/{uid} {
+      allow get, list: if signedIn();
+      allow create: if validUserProfile(uid, request.resource.data);
+      allow update: if validUserProfile(uid, request.resource.data)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['about', 'name']);
+      allow delete: if signedIn() && uid == request.auth.uid;
+    }
+
+    match /chats/{chatId} {
+      allow get: if isChatMember(resource.data);
+      allow list: if isChatMember(resource.data);
+      allow create: if validChatCreate(chatId);
+      allow update: if validChatMessageUpdate(chatId);
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow get, list: if isMemberOfChat(chatId);
+        allow create: if validMemberCreate(chatId, uid);
+        allow update: if validOwnMemberUpdate(uid) || validMessageDelivery(chatId, uid);
+        allow delete: if false;
+      }
+
+      match /messages/{messageId} {
+        allow get, list: if isMemberOfChat(chatId);
+        allow create: if validMessageCreate(chatId, messageId);
+        allow update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
