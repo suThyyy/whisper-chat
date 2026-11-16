@@ -1,0 +1,14 @@
+{
+  "version": "wc-e2ee-v1",
+  "domain": "whisperchat/control/v1",
+  "action": "recall",
+  "chatId": "30000000-0000-4000-8000-000000000001",
+  "messageId": "40000000-0000-4000-8000-000000000001",
+  "actorUid": "10000000-0000-4000-8000-000000000010",
+  "actorDid": "10000000-0000-4000-8000-000000000001",
+  "actorKeyVersion": 1,
+  "controlId": "50000000-0000-4000-8000-000000000001",
+  "issuedAt": 1794864300000,
+  "signature": "CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCw",
+  "force": true
+}

@@ -1,0 +1,390 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  USER
+  ADMIN
+}
+
+enum DeviceStatus {
+  PENDING
+  APPROVED
+  REVOKED
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ChatType {
+  DIRECT
+  GROUP
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum AttachmentState {
+  RESERVED
+  UPLOADED
+  COMMITTED
+  DELETED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AuditOutcome {
+  ALLOWED
+  DENIED
+  FAILED
+}
+
+model User {
+  id                String       @id @default(uuid()) @db.Uuid
+  normalizedEmail   String       @unique @db.VarChar(254)
+  passwordHash      String       @db.Text
+  displayName       String       @db.VarChar(100)
+  about             String       @default("") @db.VarChar(500)
+  globalRole        GlobalRole   @default(USER)
+  disabledAt        DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deviceRosterVersion Int        @default(1)
+  devices           Device[]
+  sessions          Session[]
+  memberships       Membership[]
+  sentMessages      Message[]    @relation("SentMessages")
+  requestedFriends  Friendship[] @relation("FriendRequester")
+  receivedFriends   Friendship[] @relation("FriendRecipient")
+  blocksMade        Block[]      @relation("BlockOwner")
+  blocksReceived    Block[]      @relation("BlockedTarget")
+  auditEvents       AuditEvent[] @relation("AuditActor")
+  @@index([displayName])
+}
+
+model Device {
+  id                String       @id @db.Uuid
+  userId            String       @db.Uuid
+  displayName       String       @db.VarChar(100)
+  status            DeviceStatus @default(PENDING)
+  currentKeyVersion Int          @default(1)
+  approvedByDeviceId String?     @db.Uuid
+  approvalSignature String?      @db.Text
+  enrolledAt        DateTime     @default(now())
+  approvedAt        DateTime?
+  revokedAt         DateTime?
+  pushProvider      String?      @db.VarChar(16)
+  pushToken         String?      @db.Text
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy        Device?      @relation("DeviceApproval", fields: [approvedByDeviceId], references: [id], onDelete: SetNull)
+  approvals         Device[]     @relation("DeviceApproval")
+  keyVersions       DeviceKeyVersion[]
+  sessions          Session[]
+  sentMessages      Message[]    @relation("SendingDevice")
+  recipientMessages MessageRecipient[]
+  inboxEvents       InboxEvent[]
+  counters          DeviceMessageDedup[]
+  @@index([userId, status])
+}
+
+model DeviceKeyVersion {
+  deviceId          String   @db.Uuid
+  keyVersion        Int
+  x25519Public      String   @db.Text
+  ed25519Public     String   @db.Text
+  bundleSignature   String   @db.Text
+  createdAt         DateTime @default(now())
+  retiredAt         DateTime?
+  device            Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@id([deviceId, keyVersion])
+}
+
+model AuthChallenge {
+  id          String   @id @default(uuid()) @db.Uuid
+  purpose     String   @db.VarChar(32)
+  challengeHash String @db.Char(64)
+  userId      String?  @db.Uuid
+  deviceId    String?  @db.Uuid
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  @@index([expiresAt])
+}
+
+model Session {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  deviceId    String   @db.Uuid
+  active      Boolean  @default(true)
+  familyId    String   @db.Uuid
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  revokeReason String? @db.VarChar(100)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+  @@index([userId, active])
+  @@index([deviceId, active])
+  @@index([familyId])
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  sessionId   String   @db.Uuid
+  familyId    String   @db.Uuid
+  selector    String   @unique @db.VarChar(64)
+  tokenHash   String   @unique @db.Char(64)
+  parentId    String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  parent      RefreshToken? @relation("RefreshRotation", fields: [parentId], references: [id], onDelete: SetNull)
+  children    RefreshToken[] @relation("RefreshRotation")
+  @@index([sessionId, expiresAt])
+  @@index([familyId, revokedAt])
+}
+
+model Friendship {
+  id          String             @id @default(uuid()) @db.Uuid
+  lowUserId   String             @db.Uuid
+  highUserId  String             @db.Uuid
+  requesterId String             @db.Uuid
+  recipientId String             @db.Uuid
+  status      FriendshipStatus   @default(PENDING)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  requester   User               @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient   User               @relation("FriendRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  @@unique([lowUserId, highUserId])
+  @@index([recipientId, status])
+}
+
+model Block {
+  ownerId    String   @db.Uuid
+  targetId   String   @db.Uuid
+  createdAt  DateTime @default(now())
+  owner      User     @relation("BlockOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  target     User     @relation("BlockedTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  @@id([ownerId, targetId])
+}
+
+model Chat {
+  id                    String   @id @default(uuid()) @db.Uuid
+  type                  ChatType
+  name                  String?  @db.VarChar(100)
+  creatorId             String   @db.Uuid
+  directPairKey         String?  @unique @db.VarChar(73)
+  membershipVersion     Int      @default(1)
+  nextSeq               BigInt   @default(1)
+  dissolvedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  memberships           Membership[]
+  invites               GroupInvite[]
+  messages              Message[]
+  attachments           Attachment[]
+  userStates            ChatUserState[]
+  @@index([creatorId])
+}
+
+model Membership {
+  chatId      String         @db.Uuid
+  userId      String         @db.Uuid
+  role        MembershipRole @default(MEMBER)
+  joinedAt    DateTime       @default(now())
+  leftAt      DateTime?
+  chat        Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([chatId, userId])
+  @@index([userId, leftAt])
+}
+
+model GroupInvite {
+  id          String       @id @default(uuid()) @db.Uuid
+  chatId      String       @db.Uuid
+  inviterId   String       @db.Uuid
+  inviteeId   String       @db.Uuid
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+  respondedAt DateTime?
+  chat        Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@index([inviteeId, status])
+  // A partial unique index for one PENDING invite per chat/invitee is created in SQL migration.
+}
+
+model Message {
+  id               String   @id @db.Uuid
+  chatId           String   @db.Uuid
+  senderUserId     String   @db.Uuid
+  senderDeviceId   String   @db.Uuid
+  senderKeyVersion Int
+  senderCounter    Decimal  @db.Decimal(39, 0)
+  seq              BigInt
+  rosterRevision   Json
+  rosterHash       String   @db.VarChar(128)
+  envelope         Json
+  envelopeHash     String   @db.Char(64)
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime?
+  recalledAt       DateTime?
+  recalledByControlId String? @unique @db.Uuid
+  chat             Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender           User     @relation("SentMessages", fields: [senderUserId], references: [id], onDelete: Restrict)
+  sendingDevice    Device   @relation("SendingDevice", fields: [senderDeviceId], references: [id], onDelete: Restrict)
+  recipients       MessageRecipient[]
+  hides            MessageHide[]
+  attachments      Attachment[]
+  dedup            DeviceMessageDedup?
+  @@unique([chatId, seq])
+  @@unique([senderDeviceId, senderCounter])
+  @@index([chatId, createdAt])
+  @@index([expiresAt])
+}
+
+model MessageRecipient {
+  messageId    String @db.Uuid
+  deviceId     String @db.Uuid
+  userId       String @db.Uuid
+  keyVersion   Int
+  message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  device       Device  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  @@id([messageId, deviceId, keyVersion])
+  @@index([deviceId, messageId])
+  @@index([userId, messageId])
+}
+
+model DeviceMessageDedup {
+  deviceId     String  @db.Uuid
+  senderCounter Decimal @db.Decimal(39, 0)
+  messageId    String  @unique @db.Uuid
+  envelopeHash String  @db.Char(64)
+  acceptedAt   DateTime @default(now())
+  device       Device  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  message      Message @relation(fields: [messageId], references: [id], onDelete: Restrict)
+  @@id([deviceId, senderCounter])
+}
+
+model MessageHide {
+  userId    String   @db.Uuid
+  messageId String   @db.Uuid
+  hiddenAt  DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  @@id([userId, messageId])
+}
+
+model ChatUserState {
+  chatId       String   @db.Uuid
+  userId       String   @db.Uuid
+  readSeq      BigInt   @default(0)
+  archivedAt   DateTime?
+  updatedAt    DateTime @updatedAt
+  chat         Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@id([chatId, userId])
+}
+
+model Attachment {
+  id               String          @id @default(uuid()) @db.Uuid
+  uploadId         String          @unique @default(uuid()) @db.Uuid
+  chatId           String          @db.Uuid
+  messageId        String?         @db.Uuid
+  ownerUserId      String          @db.Uuid
+  ownerDeviceId    String          @db.Uuid
+  objectKey        String          @unique @db.VarChar(128)
+  expectedBytes    Int
+  actualBytes      Int?
+  ciphertextSha256 String          @db.Char(64)
+  state            AttachmentState @default(RESERVED)
+  expiresAt        DateTime
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  chat             Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message          Message?        @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  @@index([state, expiresAt])
+  @@index([ownerUserId, createdAt])
+}
+
+model InboxEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  deviceId   String   @db.Uuid
+  cursor     BigInt   @default(autoincrement())
+  kind       String   @db.VarChar(32)
+  chatId     String?  @db.Uuid
+  objectId   String   @db.Uuid
+  revision   Int      @default(0)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@unique([deviceId, cursor])
+  @@index([deviceId, createdAt])
+  @@index([expiresAt])
+}
+
+model OutboxJob {
+  id             String    @id @default(uuid()) @db.Uuid
+  kind           String    @db.VarChar(64)
+  idempotencyKey String    @unique @db.VarChar(200)
+  payload        Json
+  status         JobStatus @default(PENDING)
+  attempts       Int       @default(0)
+  availableAt    DateTime  @default(now())
+  leaseOwner     String?   @db.VarChar(100)
+  leaseUntil     DateTime?
+  lastError      String?   @db.VarChar(500)
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+  @@index([status, availableAt])
+}
+
+model AuditEvent {
+  id          String       @id @default(uuid()) @db.Uuid
+  actorUserId String?      @db.Uuid
+  actorSessionId String?   @db.Uuid
+  action      String       @db.VarChar(100)
+  targetType  String?      @db.VarChar(64)
+  targetId    String?      @db.VarChar(128)
+  outcome     AuditOutcome
+  requestId   String       @db.VarChar(100)
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  actor       User?        @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  @@index([createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+model RateBucket {
+  keyHash      String   @id @db.Char(64)
+  tokens       Decimal  @db.Decimal(18, 6)
+  capacity     Decimal  @db.Decimal(18, 6)
+  refillPerSec Decimal  @db.Decimal(18, 6)
+  updatedAt    DateTime @updatedAt
+  blockedUntil DateTime?
+}

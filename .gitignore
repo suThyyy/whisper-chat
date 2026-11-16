@@ -14,6 +14,13 @@ firestore-debug.log
 *.orig.*
 web-build/
 
+# WhisperChat secure gateway local secrets and runtime data
+server/.env
+server/dist/
+server/coverage/
+server/node_modules/
+infra/secrets/
+
 # macOS
 .DS_Store
 

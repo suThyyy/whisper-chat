@@ -1,0 +1,17 @@
+{
+  "email": "alice@example.invalid",
+  "password": "Correct-Horse-Demo-Only-2026",
+  "displayName": "Alice Demo",
+  "deviceBundle": {
+    "deviceId": "10000000-0000-4000-8000-000000000001",
+    "keyVersion": 1,
+    "x25519Public": "ERERERERERERERERERERERERERERERERERERERERERE",
+    "ed25519Public": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI",
+    "bundleSignature": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMw",
+    "displayName": "Alice Android"
+  },
+  "proof": {
+    "challengeId": "10000000-0000-4000-8000-000000000002",
+    "signature": "REREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREA"
+  }
+}

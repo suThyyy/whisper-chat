@@ -1,0 +1,941 @@
+openapi: 3.1.0
+info:
+  title: WhisperChat Secure Gateway API
+  version: 1.0.0
+  description: Frozen P0 contract. Ciphertext only; unknown request fields are rejected.
+servers:
+  - url: https://whisperchat.lan:8443/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: System
+  - name: Auth
+  - name: Profile
+  - name: Friends
+  - name: Devices
+  - name: Chats
+  - name: Groups
+  - name: Messages
+  - name: Files
+  - name: Sync
+  - name: Admin
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      security: []
+      x-rate-limit: {limit: 60, window: 60s, keys: [ip]}
+      responses:
+        '200': {$ref: '#/components/responses/Health'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/challenge:
+    post:
+      tags: [Auth]
+      operationId: createAuthChallenge
+      security: []
+      x-rate-limit: {limit: 20, window: 60s, keys: [ip]}
+      requestBody: {$ref: '#/components/requestBodies/AuthChallenge'}
+      responses:
+        '201': {description: One-use challenge, content: {application/json: {schema: {$ref: '#/components/schemas/ChallengeResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      security: []
+      x-rate-limit: {limit: 3, window: 1h, keys: [ip], bodyMaxBytes: 16384}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RegisterRequest'}}}}
+      responses:
+        '201': {$ref: '#/components/responses/AuthTokens'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      security: []
+      x-rate-limit: {limit: 10, window: 10m, keys: [ip, hmacNormalizedEmail], secondary: {limit: 5, window: 15m}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/AuthTokens'}
+        '202': {description: Device enrollment pending, content: {application/json: {schema: {$ref: '#/components/schemas/PendingEnrollmentResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      security: []
+      x-rate-limit: {limit: 30, window: 5m, keys: [ip], secondary: {limit: 10, window: 60s, keys: [family]}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RefreshRequest'}}}}
+      responses:
+        '200': {$ref: '#/components/responses/AuthTokens'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      x-rate-limit: {limit: 10, window: 60s, keys: [sid]}
+      responses:
+        '204': {description: Session revoked}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /auth/reauth:
+    post:
+      tags: [Auth]
+      operationId: reauthenticate
+      x-rate-limit: {limit: 10, window: 60s, keys: [sid], also: login}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReauthRequest'}}}}
+      responses:
+        '200': {description: Recent-auth proof, content: {application/json: {schema: {$ref: '#/components/schemas/ReauthResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /me:
+    get:
+      tags: [Profile]
+      operationId: getMe
+      x-rate-limit: {limit: 60, window: 60s, keys: [uid]}
+      responses:
+        '200': {description: Current profile, content: {application/json: {schema: {$ref: '#/components/schemas/UserProfile'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    patch:
+      tags: [Profile]
+      operationId: updateMe
+      x-rate-limit: {limit: 10, window: 60s, keys: [uid]}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProfilePatch'}}}}
+      responses:
+        '200': {description: Updated profile, content: {application/json: {schema: {$ref: '#/components/schemas/UserProfile'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /me/password:
+    post:
+      tags: [Profile]
+      operationId: changePassword
+      x-requires-recent-auth: true
+      x-rate-limit: {limit: 3, window: 1h, keys: [uid]}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PasswordChangeRequest'}}}}
+      responses:
+        '204': {description: Password changed and other sessions revoked}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /me/delete:
+    post:
+      tags: [Profile]
+      operationId: deleteAccount
+      x-requires-recent-auth: true
+      x-rate-limit: {limit: 3, window: 1h, keys: [uid]}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DeleteAccountRequest'}}}}
+      responses:
+        '202': {description: Deletion accepted, content: {application/json: {schema: {$ref: '#/components/schemas/JobAccepted'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /users:
+    get:
+      tags: [Profile]
+      operationId: searchUsers
+      x-rate-limit: {limit: 20, window: 60s, keys: [uid], secondary: {limit: 60, window: 60s, keys: [ip]}}
+      parameters:
+        - {$ref: '#/components/parameters/SearchQuery'}
+        - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200': {description: Search page, content: {application/json: {schema: {$ref: '#/components/schemas/UserSearchPage'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /friends:
+    get:
+      tags: [Friends]
+      operationId: listFriends
+      x-rate-limit: {limit: 30, window: 60s, keys: [uid]}
+      responses:
+        '200': {description: Friends, content: {application/json: {schema: {$ref: '#/components/schemas/FriendPage'}}}}
+  /friend-requests:
+    post:
+      tags: [Friends]
+      operationId: createFriendRequest
+      x-rate-limit: {limit: 10, window: 1h, keys: [uid], perPair: {limit: 3, window: 1d}}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/FriendRequestCreate'}}}}
+      responses:
+        '201': {description: Friend request, content: {application/json: {schema: {$ref: '#/components/schemas/FriendRequest'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /friend-requests/{requestId}/accept:
+    post:
+      tags: [Friends]
+      operationId: acceptFriendRequest
+      x-rate-limit: {limit: 20, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      responses:
+        '200': {description: Friendship, content: {application/json: {schema: {$ref: '#/components/schemas/Friendship'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /friend-requests/{requestId}/reject:
+    post:
+      tags: [Friends]
+      operationId: rejectFriendRequest
+      x-rate-limit: {limit: 20, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      responses:
+        '204': {description: Request rejected}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /friends/{userId}:
+    delete:
+      tags: [Friends]
+      operationId: removeFriend
+      x-rate-limit: {limit: 20, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      responses:
+        '204': {description: Friendship removed}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /blocks/{userId}:
+    put:
+      tags: [Friends]
+      operationId: blockUser
+      x-rate-limit: {limit: 10, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      responses:
+        '204': {description: User blocked}
+    delete:
+      tags: [Friends]
+      operationId: unblockUser
+      x-rate-limit: {limit: 10, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      responses:
+        '204': {description: User unblocked}
+  /devices:
+    get:
+      tags: [Devices]
+      operationId: listDevices
+      x-rate-limit: {limit: 30, window: 60s, keys: [uid]}
+      responses:
+        '200': {description: Devices, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Device'}}}}}
+  /sessions:
+    get:
+      tags: [Devices]
+      operationId: listSessions
+      x-rate-limit: {limit: 30, window: 60s, keys: [uid]}
+      responses:
+        '200': {description: Sessions, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Session'}}}}}
+  /sessions/{sessionId}:
+    delete:
+      tags: [Devices]
+      operationId: revokeSession
+      x-rate-limit: {limit: 10, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/SessionId'}]
+      responses:
+        '204': {description: Session revoked and sockets disconnected}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /devices/enroll:
+    post:
+      tags: [Devices]
+      operationId: enrollDevice
+      security: []
+      x-rate-limit: {limit: 5, window: 1h, keys: [uid, ip]}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DeviceEnrollRequest'}}}}
+      responses:
+        '202': {description: Pending device, content: {application/json: {schema: {$ref: '#/components/schemas/PendingEnrollmentResponse'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /devices/{deviceId}/approve:
+    post:
+      tags: [Devices]
+      operationId: approveDevice
+      x-requires-recent-auth: true
+      x-rate-limit: {limit: 5, window: 1h, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/DeviceId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DeviceApprovalRequest'}}}}
+      responses:
+        '200': {description: Approved device, content: {application/json: {schema: {$ref: '#/components/schemas/Device'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /devices/{deviceId}:
+    delete:
+      tags: [Devices]
+      operationId: revokeDevice
+      x-rate-limit: {limit: 5, window: 1h, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/DeviceId'}]
+      responses:
+        '204': {description: Device and its sessions revoked}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /devices/{deviceId}/push-token:
+    put:
+      tags: [Devices]
+      operationId: setPushToken
+      x-scope: SHOULD
+      x-rate-limit: {limit: 10, window: 1h, keys: [device]}
+      parameters: [{$ref: '#/components/parameters/DeviceId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/PushTokenRequest'}}}}
+      responses: {'204': {description: Token stored}}
+    delete:
+      tags: [Devices]
+      operationId: deletePushToken
+      x-scope: SHOULD
+      x-rate-limit: {limit: 10, window: 1h, keys: [device]}
+      parameters: [{$ref: '#/components/parameters/DeviceId'}]
+      responses: {'204': {description: Token removed}}
+  /chats/direct:
+    post:
+      tags: [Chats]
+      operationId: createDirectChat
+      x-rate-limit: {limit: 10, window: 60s, keys: [uid]}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DirectChatCreate'}}}}
+      responses:
+        '200': {description: Existing or new direct chat, content: {application/json: {schema: {$ref: '#/components/schemas/Chat'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /chats:
+    get:
+      tags: [Chats]
+      operationId: listChats
+      x-rate-limit: {limit: 60, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/Cursor'}]
+      responses:
+        '200': {description: Chat page, content: {application/json: {schema: {$ref: '#/components/schemas/ChatPage'}}}}
+  /groups:
+    post:
+      tags: [Groups]
+      operationId: createGroup
+      x-rate-limit: {limit: 5, window: 1h, keys: [uid]}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GroupCreate'}}}}
+      responses:
+        '201': {description: Group chat, content: {application/json: {schema: {$ref: '#/components/schemas/Chat'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /groups/{chatId}:
+    patch:
+      tags: [Groups]
+      operationId: renameGroup
+      x-rate-limit: {limit: 10, window: 60s, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GroupPatch'}}}}
+      responses:
+        '200': {description: Group, content: {application/json: {schema: {$ref: '#/components/schemas/Chat'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    delete:
+      tags: [Groups]
+      operationId: dissolveGroup
+      x-requires-recent-auth: true
+      x-rate-limit: {limit: 5, window: 60s, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      responses:
+        '204': {description: Group dissolved}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /groups/{chatId}/invites:
+    post:
+      tags: [Groups]
+      operationId: createGroupInvite
+      x-rate-limit: {limit: 20, window: 1h, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GroupInviteCreate'}}}}
+      responses:
+        '201': {description: Invite, content: {application/json: {schema: {$ref: '#/components/schemas/GroupInvite'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /group-invites/{inviteId}/accept:
+    post:
+      tags: [Groups]
+      operationId: acceptGroupInvite
+      x-rate-limit: {limit: 20, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/InviteId'}]
+      responses:
+        '200': {description: Joined group, content: {application/json: {schema: {$ref: '#/components/schemas/Chat'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /group-invites/{inviteId}/reject:
+    post:
+      tags: [Groups]
+      operationId: rejectGroupInvite
+      x-rate-limit: {limit: 20, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/InviteId'}]
+      responses: {'204': {description: Invite rejected}}
+  /groups/{chatId}/members/{userId}:
+    delete:
+      tags: [Groups]
+      operationId: removeGroupMember
+      x-rate-limit: {limit: 10, window: 60s, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}, {$ref: '#/components/parameters/UserId'}]
+      responses:
+        '204': {description: Member removed}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /groups/{chatId}/leave:
+    post:
+      tags: [Groups]
+      operationId: leaveGroup
+      x-rate-limit: {limit: 10, window: 60s, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      responses:
+        '204': {description: Left group}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /groups/{chatId}/members/{userId}/role:
+    patch:
+      tags: [Groups]
+      operationId: changeGroupRole
+      x-rate-limit: {limit: 5, window: 60s, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}, {$ref: '#/components/parameters/UserId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/GroupRolePatch'}}}}
+      responses:
+        '200': {description: Membership, content: {application/json: {schema: {$ref: '#/components/schemas/Membership'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /groups/{chatId}/transfer-owner:
+    post:
+      tags: [Groups]
+      operationId: transferGroupOwner
+      x-requires-recent-auth: true
+      x-rate-limit: {limit: 5, window: 60s, keys: [chat]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OwnerTransferRequest'}}}}
+      responses:
+        '204': {description: Ownership transferred}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /chats/{chatId}/roster:
+    get:
+      tags: [Chats]
+      operationId: getChatRoster
+      x-rate-limit: {limit: 60, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      responses:
+        '200': {description: Public device roster, content: {application/json: {schema: {$ref: '#/components/schemas/Roster'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /chats/{chatId}/messages:
+    post:
+      tags: [Messages]
+      operationId: sendMessage
+      x-rate-limit: {limit: 30, window: 60s, keys: [device], secondary: [{limit: 60, keys: [uid]}, {limit: 120, keys: [chat]}], burst: 10}
+      parameters:
+        - {$ref: '#/components/parameters/ChatId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './e2ee-envelope.schema.json#/$defs/envelope'}}}}
+      responses:
+        '200': {description: Idempotent existing result, content: {application/json: {schema: {$ref: '#/components/schemas/MessageReceipt'}}}}
+        '201': {description: Message committed, content: {application/json: {schema: {$ref: '#/components/schemas/MessageReceipt'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+    get:
+      tags: [Messages]
+      operationId: listMessages
+      x-rate-limit: {limit: 120, window: 60s, keys: [device]}
+      parameters:
+        - {$ref: '#/components/parameters/ChatId'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 50}}
+      responses:
+        '200': {description: Authorized message page, content: {application/json: {schema: {$ref: '#/components/schemas/MessagePage'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /chats/{chatId}/messages/{messageId}:
+    get:
+      tags: [Messages]
+      operationId: getMessage
+      x-rate-limit: {limit: 120, window: 60s, keys: [device]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}, {$ref: '#/components/parameters/MessageId'}]
+      responses:
+        '200': {description: Authorized envelope, content: {application/json: {schema: {$ref: '#/components/schemas/StoredMessage'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /chats/{chatId}/read:
+    post:
+      tags: [Messages]
+      operationId: markRead
+      x-rate-limit: {limit: 30, window: 60s, keys: [device]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReadCursor'}}}}
+      responses: {'204': {description: Read cursor advanced}}
+  /chats/{chatId}/messages/{messageId}/local:
+    delete:
+      tags: [Messages]
+      operationId: hideMessageForMe
+      x-rate-limit: {limit: 30, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}, {$ref: '#/components/parameters/MessageId'}]
+      responses: {'204': {description: Message hidden for current user}}
+  /chats/{chatId}/messages/{messageId}/recall:
+    post:
+      tags: [Messages]
+      operationId: recallMessage
+      x-rate-limit: {limit: 30, window: 60s, keys: [uid]}
+      parameters: [{$ref: '#/components/parameters/ChatId'}, {$ref: '#/components/parameters/MessageId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './e2ee-envelope.schema.json#/$defs/recallControl'}}}}
+      responses:
+        '200': {description: Recall result, content: {application/json: {schema: {$ref: '#/components/schemas/RecallReceipt'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /chats/{chatId}/uploads:
+    post:
+      tags: [Files]
+      operationId: reserveUpload
+      x-rate-limit: {limit: 10, window: 1h, keys: [uid], concurrentPerDevice: 2, dailyBytes: 104857600}
+      parameters: [{$ref: '#/components/parameters/ChatId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UploadReservationRequest'}}}}
+      responses:
+        '201': {description: Upload reservation, content: {application/json: {schema: {$ref: '#/components/schemas/UploadReservation'}}}}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+  /uploads/{uploadId}:
+    put:
+      tags: [Files]
+      operationId: uploadCiphertext
+      x-rate-limit: {concurrentPerDevice: 2, dailyBytes: 104857600}
+      parameters: [{$ref: '#/components/parameters/UploadId'}]
+      requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, contentMediaType: application/octet-stream, description: 'WCFILE1 || nonce12 || ciphertext || tag16'}}}}
+      responses:
+        '201': {description: Uploaded object, content: {application/json: {schema: {$ref: '#/components/schemas/UploadedObject'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+  /attachments/{attachmentId}:
+    get:
+      tags: [Files]
+      operationId: downloadCiphertext
+      x-rate-limit: {limit: 60, window: 60s, keys: [device], dailyBytes: 104857600}
+      parameters: [{$ref: '#/components/parameters/AttachmentId'}]
+      responses:
+        '200': {description: WCFILE1 ciphertext, content: {application/octet-stream: {schema: {type: string, contentMediaType: application/octet-stream}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /sync:
+    get:
+      tags: [Sync]
+      operationId: syncEvents
+      x-rate-limit: {limit: 30, window: 60s, keys: [device]}
+      parameters:
+        - {name: after, in: query, schema: {type: string, pattern: '^[0-9]+$'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 100}}
+      responses:
+        '200': {description: Device inbox events, content: {application/json: {schema: {$ref: '#/components/schemas/SyncPage'}}}}
+        '410': {description: Cursor expired; authorized full resync required, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /presence:
+    get:
+      tags: [Sync]
+      operationId: getPresence
+      x-rate-limit: {limit: 30, window: 60s, keys: [device]}
+      parameters:
+        - {name: userIds, in: query, required: true, schema: {type: array, maxItems: 10, items: {$ref: '#/components/schemas/Uuid'}}, style: form, explode: false}
+      responses:
+        '200': {description: Authorized presence, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Presence'}}}}}
+  /admin/audit:
+    get:
+      tags: [Admin]
+      operationId: listAuditEvents
+      x-rate-limit: {limit: 30, window: 60s, keys: [admin]}
+      parameters: [{$ref: '#/components/parameters/Cursor'}]
+      responses:
+        '200': {description: Redacted audit events, content: {application/json: {schema: {$ref: '#/components/schemas/AuditPage'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /admin/users/{userId}/disable:
+    post:
+      tags: [Admin]
+      operationId: disableUser
+      x-requires-recent-auth: true
+      x-rate-limit: {limit: 5, window: 60s, keys: [admin]}
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminDisableRequest'}}}}
+      responses:
+        '204': {description: User disabled, sessions revoked}
+        '403': {$ref: '#/components/responses/Forbidden'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    Cursor: {name: cursor, in: query, schema: {type: string, maxLength: 512}}
+    SearchQuery: {name: query, in: query, required: true, schema: {type: string, minLength: 3, maxLength: 100}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    UserId: {name: userId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    DeviceId: {name: deviceId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    SessionId: {name: sessionId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    RequestId: {name: requestId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    InviteId: {name: inviteId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ChatId: {name: chatId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    MessageId: {name: messageId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    UploadId: {name: uploadId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    AttachmentId: {name: attachmentId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+  requestBodies:
+    AuthChallenge: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChallengeRequest'}}}}
+  responses:
+    Health: {description: Gateway readiness, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+    AuthTokens: {description: Access and opaque refresh token, content: {application/json: {schema: {$ref: '#/components/schemas/AuthTokens'}}}}
+    BadRequest: {description: Invalid request, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Unauthorized: {description: Invalid or expired credentials, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Forbidden: {description: Authenticated but action forbidden, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    NotFound: {description: Missing or deliberately concealed foreign resource, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Conflict: {description: State, roster, replay, or idempotency conflict, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    RateLimited: {description: Rate limit exceeded, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    PayloadTooLarge: {description: Payload over configured cap, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  schemas:
+    Uuid: {type: string, format: uuid}
+    Base64Url: {type: string, pattern: '^[A-Za-z0-9_-]+$'}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code: {type: string, pattern: '^[A-Z0-9_]+$'}
+        message: {type: string, maxLength: 300}
+        requestId: {type: string, minLength: 8, maxLength: 100}
+        retryAfterSeconds: {type: integer, minimum: 1}
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties: {status: {const: ready}}
+    ChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose]
+      properties: {purpose: {enum: [login, refresh, enroll, approve_device, reauth]}}
+    ChallengeResponse:
+      type: object
+      additionalProperties: false
+      required: [challengeId, challenge, expiresAt]
+      properties:
+        challengeId: {$ref: '#/components/schemas/Uuid'}
+        challenge: {$ref: '#/components/schemas/Base64Url'}
+        expiresAt: {type: integer, minimum: 0}
+    DeviceBundle:
+      type: object
+      additionalProperties: false
+      required: [deviceId, keyVersion, x25519Public, ed25519Public, bundleSignature]
+      properties:
+        deviceId: {$ref: '#/components/schemas/Uuid'}
+        keyVersion: {type: integer, minimum: 1}
+        x25519Public: {$ref: '#/components/schemas/Base64Url'}
+        ed25519Public: {$ref: '#/components/schemas/Base64Url'}
+        bundleSignature: {$ref: '#/components/schemas/Base64Url'}
+        displayName: {type: string, minLength: 1, maxLength: 100}
+    DeviceProof:
+      type: object
+      additionalProperties: false
+      required: [challengeId, signature]
+      properties:
+        challengeId: {$ref: '#/components/schemas/Uuid'}
+        signature: {$ref: '#/components/schemas/Base64Url'}
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, displayName, deviceBundle, proof]
+      properties:
+        email: {type: string, format: email, maxLength: 254}
+        password: {type: string, minLength: 12, maxLength: 128}
+        displayName: {type: string, minLength: 1, maxLength: 100}
+        deviceBundle: {$ref: '#/components/schemas/DeviceBundle'}
+        proof: {$ref: '#/components/schemas/DeviceProof'}
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, deviceBundle, proof]
+      properties:
+        email: {type: string, format: email, maxLength: 254}
+        password: {type: string, minLength: 1, maxLength: 128}
+        deviceBundle: {$ref: '#/components/schemas/DeviceBundle'}
+        proof: {$ref: '#/components/schemas/DeviceProof'}
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken, proof]
+      properties:
+        refreshToken: {type: string, minLength: 43, maxLength: 512}
+        proof: {$ref: '#/components/schemas/DeviceProof'}
+    ReauthRequest:
+      type: object
+      additionalProperties: false
+      required: [password, proof]
+      properties:
+        password: {type: string, minLength: 1, maxLength: 128}
+        proof: {$ref: '#/components/schemas/DeviceProof'}
+    ReauthResponse:
+      type: object
+      additionalProperties: false
+      required: [reauthToken, expiresAt]
+      properties:
+        reauthToken: {type: string, minLength: 20, maxLength: 2048}
+        expiresAt: {type: integer, minimum: 0}
+    AuthTokens:
+      type: object
+      additionalProperties: false
+      required: [accessToken, refreshToken, accessExpiresAt, sessionId, deviceId]
+      properties:
+        accessToken: {type: string, minLength: 20}
+        refreshToken: {type: string, minLength: 43}
+        accessExpiresAt: {type: integer, minimum: 0}
+        sessionId: {$ref: '#/components/schemas/Uuid'}
+        deviceId: {$ref: '#/components/schemas/Uuid'}
+    PendingEnrollmentResponse:
+      type: object
+      additionalProperties: false
+      required: [enrollmentId, deviceId, status, expiresAt]
+      properties:
+        enrollmentId: {$ref: '#/components/schemas/Uuid'}
+        deviceId: {$ref: '#/components/schemas/Uuid'}
+        status: {const: pending}
+        expiresAt: {type: integer, minimum: 0}
+    UserProfile:
+      type: object
+      additionalProperties: false
+      required: [id, displayName, about, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        displayName: {type: string, minLength: 1, maxLength: 100}
+        about: {type: string, maxLength: 500}
+        createdAt: {type: integer, minimum: 0}
+    ProfilePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        displayName: {type: string, minLength: 1, maxLength: 100}
+        about: {type: string, maxLength: 500}
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword, reauthToken]
+      properties:
+        currentPassword: {type: string, minLength: 1, maxLength: 128}
+        newPassword: {type: string, minLength: 12, maxLength: 128}
+        reauthToken: {type: string, minLength: 20}
+    DeleteAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [reauthToken, confirmation]
+      properties:
+        reauthToken: {type: string, minLength: 20}
+        confirmation: {const: DELETE_MY_ACCOUNT}
+    JobAccepted:
+      type: object
+      additionalProperties: false
+      required: [jobId, status]
+      properties: {jobId: {$ref: '#/components/schemas/Uuid'}, status: {const: accepted}}
+    UserSearchPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties: {items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/UserProfile'}}, nextCursor: {type: [string, 'null']}}
+    FriendRequestCreate:
+      type: object
+      additionalProperties: false
+      required: [targetUserId]
+      properties: {targetUserId: {$ref: '#/components/schemas/Uuid'}}
+    FriendRequest:
+      type: object
+      additionalProperties: false
+      required: [id, requesterId, recipientId, status, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        requesterId: {$ref: '#/components/schemas/Uuid'}
+        recipientId: {$ref: '#/components/schemas/Uuid'}
+        status: {enum: [pending, accepted, rejected]}
+        createdAt: {type: integer, minimum: 0}
+    Friendship:
+      type: object
+      additionalProperties: false
+      required: [id, userId, friendUserId, since]
+      properties: {id: {$ref: '#/components/schemas/Uuid'}, userId: {$ref: '#/components/schemas/Uuid'}, friendUserId: {$ref: '#/components/schemas/Uuid'}, since: {type: integer, minimum: 0}}
+    FriendPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/UserProfile'}}, nextCursor: {type: [string, 'null']}}
+    Device:
+      type: object
+      additionalProperties: false
+      required: [id, status, keyVersion, displayName, enrolledAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        status: {enum: [pending, approved, revoked]}
+        keyVersion: {type: integer, minimum: 1}
+        displayName: {type: string}
+        enrolledAt: {type: integer, minimum: 0}
+        revokedAt: {type: [integer, 'null'], minimum: 0}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [id, deviceId, active, createdAt, expiresAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        deviceId: {$ref: '#/components/schemas/Uuid'}
+        active: {type: boolean}
+        createdAt: {type: integer, minimum: 0}
+        expiresAt: {type: integer, minimum: 0}
+        lastSeenAt: {type: [integer, 'null'], minimum: 0}
+    DeviceEnrollRequest:
+      type: object
+      additionalProperties: false
+      required: [enrollmentToken, deviceBundle, proof]
+      properties:
+        enrollmentToken: {type: string, minLength: 20, maxLength: 2048}
+        deviceBundle: {$ref: '#/components/schemas/DeviceBundle'}
+        proof: {$ref: '#/components/schemas/DeviceProof'}
+    DeviceApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [approvalSignature, approvingDeviceId, reauthToken]
+      properties:
+        approvalSignature: {$ref: '#/components/schemas/Base64Url'}
+        approvingDeviceId: {$ref: '#/components/schemas/Uuid'}
+        reauthToken: {type: string, minLength: 20}
+    PushTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [provider, token]
+      properties: {provider: {enum: [expo, fcm]}, token: {type: string, minLength: 10, maxLength: 4096}}
+    DirectChatCreate:
+      type: object
+      additionalProperties: false
+      required: [otherUserId]
+      properties: {otherUserId: {$ref: '#/components/schemas/Uuid'}}
+    GroupCreate:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: {name: {type: string, minLength: 1, maxLength: 100}}
+    GroupPatch:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: {name: {type: string, minLength: 1, maxLength: 100}}
+    GroupInviteCreate:
+      type: object
+      additionalProperties: false
+      required: [userId]
+      properties: {userId: {$ref: '#/components/schemas/Uuid'}}
+    GroupInvite:
+      type: object
+      additionalProperties: false
+      required: [id, chatId, inviterId, inviteeId, status, expiresAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        chatId: {$ref: '#/components/schemas/Uuid'}
+        inviterId: {$ref: '#/components/schemas/Uuid'}
+        inviteeId: {$ref: '#/components/schemas/Uuid'}
+        status: {enum: [pending, accepted, rejected, expired]}
+        expiresAt: {type: integer, minimum: 0}
+    GroupRolePatch:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties: {role: {enum: [admin, member]}}
+    OwnerTransferRequest:
+      type: object
+      additionalProperties: false
+      required: [newOwnerUserId, reauthToken]
+      properties: {newOwnerUserId: {$ref: '#/components/schemas/Uuid'}, reauthToken: {type: string, minLength: 20}}
+    Membership:
+      type: object
+      additionalProperties: false
+      required: [userId, role, joinedAt]
+      properties: {userId: {$ref: '#/components/schemas/Uuid'}, role: {enum: [owner, admin, member]}, joinedAt: {type: integer, minimum: 0}}
+    Chat:
+      type: object
+      additionalProperties: false
+      required: [id, type, membershipRevision, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        type: {enum: [direct, group]}
+        name: {type: [string, 'null'], maxLength: 100}
+        membershipRevision: {type: integer, minimum: 1}
+        createdAt: {type: integer, minimum: 0}
+    ChatPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/Chat'}}, nextCursor: {type: [string, 'null']}}
+    RosterDevice:
+      allOf:
+        - {$ref: '#/components/schemas/DeviceBundle'}
+        - {type: object, required: [userId], properties: {userId: {$ref: '#/components/schemas/Uuid'}}}
+    Roster:
+      type: object
+      additionalProperties: false
+      required: [chatId, membershipRevision, rosterHash, devices]
+      properties:
+        chatId: {$ref: '#/components/schemas/Uuid'}
+        membershipRevision: {type: integer, minimum: 1}
+        rosterHash: {$ref: '#/components/schemas/Base64Url'}
+        devices: {type: array, maxItems: 30, items: {$ref: '#/components/schemas/RosterDevice'}}
+    MessageReceipt:
+      type: object
+      additionalProperties: false
+      required: [chatId, messageId, seq, createdAt, envelopeHash, idempotent]
+      properties:
+        chatId: {$ref: '#/components/schemas/Uuid'}
+        messageId: {$ref: '#/components/schemas/Uuid'}
+        seq: {type: string, pattern: '^[1-9][0-9]*$'}
+        createdAt: {type: integer, minimum: 0}
+        envelopeHash: {$ref: '#/components/schemas/Base64Url'}
+        idempotent: {type: boolean}
+    StoredMessage:
+      type: object
+      additionalProperties: false
+      required: [seq, createdAt, envelope]
+      properties:
+        seq: {type: string, pattern: '^[1-9][0-9]*$'}
+        createdAt: {type: integer, minimum: 0}
+        envelope: {$ref: './e2ee-envelope.schema.json#/$defs/envelope'}
+    MessagePage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties: {items: {type: array, maxItems: 50, items: {$ref: '#/components/schemas/StoredMessage'}}, nextCursor: {type: [string, 'null']}}
+    ReadCursor:
+      type: object
+      additionalProperties: false
+      required: [seq]
+      properties: {seq: {type: string, pattern: '^[0-9]+$'}}
+    RecallReceipt:
+      type: object
+      additionalProperties: false
+      required: [messageId, recalledAt, idempotent]
+      properties: {messageId: {$ref: '#/components/schemas/Uuid'}, recalledAt: {type: integer, minimum: 0}, idempotent: {type: boolean}}
+    UploadReservationRequest:
+      type: object
+      additionalProperties: false
+      required: [messageId, ciphertextBytes, ciphertextSha256]
+      properties:
+        messageId: {$ref: '#/components/schemas/Uuid'}
+        ciphertextBytes: {type: integer, minimum: 29, maximum: 10485789}
+        ciphertextSha256: {$ref: '#/components/schemas/Base64Url'}
+    UploadReservation:
+      type: object
+      additionalProperties: false
+      required: [uploadId, attachmentId, uploadPath, expiresAt, maxBytes]
+      properties:
+        uploadId: {$ref: '#/components/schemas/Uuid'}
+        attachmentId: {$ref: '#/components/schemas/Uuid'}
+        uploadPath: {type: string, pattern: '^/v1/uploads/'}
+        expiresAt: {type: integer, minimum: 0}
+        maxBytes: {type: integer, minimum: 29}
+    UploadedObject:
+      type: object
+      additionalProperties: false
+      required: [attachmentId, ciphertextBytes, ciphertextSha256, state]
+      properties:
+        attachmentId: {$ref: '#/components/schemas/Uuid'}
+        ciphertextBytes: {type: integer, minimum: 29}
+        ciphertextSha256: {$ref: '#/components/schemas/Base64Url'}
+        state: {const: uploaded}
+    InboxEvent:
+      type: object
+      additionalProperties: false
+      required: [eventId, cursor, kind, objectId, revision]
+      properties:
+        eventId: {$ref: '#/components/schemas/Uuid'}
+        cursor: {type: string, pattern: '^[1-9][0-9]*$'}
+        kind: {enum: [message, recall, group, device, session]}
+        chatId: {oneOf: [{$ref: '#/components/schemas/Uuid'}, {type: 'null'}]}
+        objectId: {$ref: '#/components/schemas/Uuid'}
+        revision: {type: integer, minimum: 0}
+    SyncPage:
+      type: object
+      additionalProperties: false
+      required: [items, cursor]
+      properties: {items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/InboxEvent'}}, cursor: {type: string, pattern: '^[0-9]+$'}, hasMore: {type: boolean}}
+    Presence:
+      type: object
+      additionalProperties: false
+      required: [userId, online, lastSeen]
+      properties: {userId: {$ref: '#/components/schemas/Uuid'}, online: {type: boolean}, lastSeen: {type: integer, minimum: 0}}
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, action, outcome, createdAt, requestId]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        actorUserId: {oneOf: [{$ref: '#/components/schemas/Uuid'}, {type: 'null'}]}
+        action: {type: string, maxLength: 100}
+        targetType: {type: [string, 'null']}
+        targetId: {type: [string, 'null']}
+        outcome: {enum: [allowed, denied, failed]}
+        createdAt: {type: integer, minimum: 0}
+        requestId: {type: string}
+    AuditPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/AuditEvent'}}, nextCursor: {type: [string, 'null']}}
+    AdminDisableRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, reauthToken]
+      properties: {reason: {type: string, minLength: 3, maxLength: 300}, reauthToken: {type: string, minLength: 20}}

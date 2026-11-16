@@ -1,0 +1,17 @@
+{
+  "$comment": "Map contracts/fixtures/<file> -> schema ref + expected layer. Do Helper B duy trì (T-04). schemaValid=true: phải pass JSON Schema; false: phải bị schema reject; null: không phải payload hoàn chỉnh, chỉ kiểm ở tầng policy server (T-09/T-15). policyReject=true: server phải từ chối dù schema hợp lệ. Fixture mới chưa có trong map làm test FAIL để buộc khai báo.",
+  "fixtures": {
+    "auth-register.valid.json": { "schema": "openapi#/components/schemas/RegisterRequest", "schemaValid": true },
+    "auth-register.invalid-extra-field.json": { "schema": "openapi#/components/schemas/RegisterRequest", "schemaValid": false, "why": "role field must not be accepted at register (privilege escalation)" },
+    "direct-create.valid.json": { "schema": "openapi#/components/schemas/DirectChatCreate", "schemaValid": true },
+    "direct-create.invalid-self.json": { "schema": "openapi#/components/schemas/DirectChatCreate", "schemaValid": true, "policyReject": true, "why": "otherUserId == actor uid; rejected by server policy, not by schema" },
+    "group-create.valid.json": { "schema": "openapi#/components/schemas/GroupCreate", "schemaValid": true },
+    "group-create.invalid-empty-name.json": { "schema": "openapi#/components/schemas/GroupCreate", "schemaValid": false },
+    "message-expiry.valid.json": { "schema": "e2ee#/$defs/envelope", "schemaValid": true },
+    "message-expiry.invalid-too-soon.json": { "schema": null, "schemaValid": null, "policyReject": true, "why": "fragment: expiresAt < 60s after receipt, server policy only" },
+    "message-text-group.valid.json": { "schema": "e2ee#/$defs/envelope", "schemaValid": true },
+    "message-wrap.invalid-key-length.json": { "schema": "e2ee#/$defs/envelope", "schemaValid": false },
+    "recall.valid.json": { "schema": "e2ee#/$defs/recallControl", "schemaValid": true },
+    "recall.invalid-extra-field.json": { "schema": "e2ee#/$defs/recallControl", "schemaValid": false }
+  }
+}

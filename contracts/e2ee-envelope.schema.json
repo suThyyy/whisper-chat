@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperchat.lan/contracts/e2ee-envelope.schema.json",
+  "title": "WhisperChat E2EE v1",
+  "description": "JCS (RFC 8785), UTF-8, base64url without padding. File bytes are: ASCII WCFILE1 (7 bytes) || nonce (12 bytes) || ciphertext || tag (16 bytes).",
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "b64u": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "nonce12": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16}$"},
+    "tag16": {"type": "string", "pattern": "^[A-Za-z0-9_-]{22}$"},
+    "bytes32": {"type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"},
+    "signature64": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
+    "counter": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$", "maxLength": 40},
+    "rosterRevision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["membershipVersion", "deviceVersions"],
+      "properties": {
+        "membershipVersion": {"type": "integer", "minimum": 1},
+        "deviceVersions": {
+          "type": "array", "minItems": 1, "maxItems": 10,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["userId", "version"],
+            "properties": {"userId": {"$ref": "#/$defs/uuid"}, "version": {"type": "integer", "minimum": 1}}
+          }
+        }
+      }
+    },
+    "header": {
+      "type": "object", "additionalProperties": false,
+      "required": ["chatId", "messageId", "senderUserId", "senderDeviceId", "senderKeyVersion", "senderCounter", "type", "clientSentAt", "expiresAt", "rosterRevision", "rosterHash"],
+      "properties": {
+        "chatId": {"$ref": "#/$defs/uuid"}, "messageId": {"$ref": "#/$defs/uuid"},
+        "senderUserId": {"$ref": "#/$defs/uuid"}, "senderDeviceId": {"$ref": "#/$defs/uuid"},
+        "senderKeyVersion": {"type": "integer", "minimum": 1}, "senderCounter": {"$ref": "#/$defs/counter"},
+        "type": {"enum": ["text", "attachment"]}, "clientSentAt": {"type": "integer", "minimum": 0},
+        "expiresAt": {"type": ["integer", "null"], "minimum": 0},
+        "rosterRevision": {"$ref": "#/$defs/rosterRevision"}, "rosterHash": {"$ref": "#/$defs/bytes32"}
+      }
+    },
+    "recipient": {
+      "type": "object", "additionalProperties": false, "required": ["userId", "deviceId", "keyVersion"],
+      "properties": {"userId": {"$ref": "#/$defs/uuid"}, "deviceId": {"$ref": "#/$defs/uuid"}, "keyVersion": {"type": "integer", "minimum": 1}}
+    },
+    "sealed": {
+      "type": "object", "additionalProperties": false, "required": ["nonce", "ciphertext", "tag"],
+      "properties": {"nonce": {"$ref": "#/$defs/nonce12"}, "ciphertext": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$", "maxLength": 16384}, "tag": {"$ref": "#/$defs/tag16"}}
+    },
+    "wrap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["userId", "deviceId", "keyVersion", "salt", "nonce", "ciphertext", "tag"],
+      "properties": {
+        "userId": {"$ref": "#/$defs/uuid"}, "deviceId": {"$ref": "#/$defs/uuid"}, "keyVersion": {"type": "integer", "minimum": 1},
+        "salt": {"$ref": "#/$defs/bytes32"}, "nonce": {"$ref": "#/$defs/nonce12"}, "ciphertext": {"$ref": "#/$defs/bytes32"}, "tag": {"$ref": "#/$defs/tag16"}
+      }
+    },
+    "envelope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "suite", "header", "recipients", "payload", "wraps", "signature"],
+      "properties": {
+        "version": {"const": "wc-e2ee-v1"}, "suite": {"const": "X25519-HKDFSHA256-A256GCM-Ed25519"},
+        "header": {"$ref": "#/$defs/header"},
+        "recipients": {"type": "array", "minItems": 1, "maxItems": 30, "uniqueItems": true, "items": {"$ref": "#/$defs/recipient"}},
+        "payload": {"$ref": "#/$defs/sealed"},
+        "wraps": {"type": "array", "minItems": 1, "maxItems": 30, "uniqueItems": true, "items": {"$ref": "#/$defs/wrap"}},
+        "signature": {"$ref": "#/$defs/signature64"}
+      }
+    },
+    "recallControl": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "domain", "action", "chatId", "messageId", "actorUid", "actorDid", "actorKeyVersion", "controlId", "issuedAt", "signature"],
+      "properties": {
+        "version": {"const": "wc-e2ee-v1"}, "domain": {"const": "whisperchat/control/v1"}, "action": {"const": "recall"},
+        "chatId": {"$ref": "#/$defs/uuid"}, "messageId": {"$ref": "#/$defs/uuid"}, "actorUid": {"$ref": "#/$defs/uuid"}, "actorDid": {"$ref": "#/$defs/uuid"},
+        "actorKeyVersion": {"type": "integer", "minimum": 1}, "controlId": {"$ref": "#/$defs/uuid"}, "issuedAt": {"type": "integer", "minimum": 0}, "signature": {"$ref": "#/$defs/signature64"}
+      }
+    }
+  },
+  "oneOf": [{"$ref": "#/$defs/envelope"}, {"$ref": "#/$defs/recallControl"}]
+}

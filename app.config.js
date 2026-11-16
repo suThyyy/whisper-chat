@@ -30,7 +30,13 @@ export default {
       favicon: 'src/assets/favicon.png',
     },
     newArchEnabled: true,
-    plugins: ['expo-font', 'expo-notifications', 'expo-video'],
+    plugins: [
+      'expo-font',
+      'expo-notifications',
+      'expo-video',
+      './plugins/withGradleArch',
+      './plugins/withNetworkSecurity',
+    ],
     extra: {
       apiKey: process.env.EXPO_PUBLIC_API_KEY,
       authDomain: process.env.EXPO_PUBLIC_AUTH_DOMAIN,

@@ -1,0 +1,59 @@
+name: whisperchat-secure
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    env_file: [server/.env]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  gateway:
+    build:
+      context: server
+    restart: unless-stopped
+    env_file: [server/.env]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      CIPHERTEXT_ROOT: /data/ciphertext
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ciphertext:/data/ciphertext
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      GATEWAY_PORT: 8443
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/public/server.crt:/etc/caddy/certs/server.crt:ro
+      - ./infra/secrets/server.key:/etc/caddy/secrets/server.key:ro
+    networks: [backend]
+
+networks:
+  backend:
+    internal: false
+
+volumes:
+  pgdata:
+  ciphertext:

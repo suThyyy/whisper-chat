@@ -1,0 +1,14 @@
+{
+  "name": "SHA-256 (FIPS 180-4 examples / NIST CAVP)",
+  "source": [
+    "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/SHA256.pdf",
+    "https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/secure-hashing"
+  ],
+  "notes": "abc / two-block from the NIST FIPS 180 example document; empty message is SHA256ShortMsg.rsp Len = 0.",
+  "encoding": "message as UTF-8 (ASCII) text, digest hex",
+  "vectors": [
+    { "id": "fips180-one-block-abc", "messageUtf8": "abc", "digest": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
+    { "id": "fips180-two-block", "messageUtf8": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "digest": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1" },
+    { "id": "cavp-shortmsg-len0", "messageUtf8": "", "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
+  ]
+}

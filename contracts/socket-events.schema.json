@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whisperchat.lan/contracts/socket-events.schema.json",
+  "title": "WhisperChat Socket.IO contract v1",
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "cursor": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+    "handshake": {
+      "type": "object", "additionalProperties": false, "required": ["accessToken", "protocolVersion"],
+      "properties": {"accessToken": {"type": "string", "minLength": 20, "maxLength": 4096}, "protocolVersion": {"const": 1}}
+    },
+    "inboxChanged": {
+      "type": "object", "additionalProperties": false, "required": ["eventId", "cursor", "kind", "objectId", "revision"],
+      "properties": {"eventId": {"$ref": "#/$defs/uuid"}, "cursor": {"$ref": "#/$defs/cursor"}, "kind": {"enum": ["message", "recall", "group", "device", "session"]}, "chatId": {"oneOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]}, "objectId": {"$ref": "#/$defs/uuid"}, "revision": {"type": "integer", "minimum": 0}}
+    },
+    "presenceChanged": {
+      "type": "object", "additionalProperties": false, "required": ["userId", "online", "lastSeen"],
+      "properties": {"userId": {"$ref": "#/$defs/uuid"}, "online": {"type": "boolean"}, "lastSeen": {"type": "integer", "minimum": 0}}
+    },
+    "sessionRevoked": {"type": "object", "additionalProperties": false, "required": ["sessionId", "reason"], "properties": {"sessionId": {"$ref": "#/$defs/uuid"}, "reason": {"type": "string", "maxLength": 100}}},
+    "sessionExpiring": {"type": "object", "additionalProperties": false, "required": ["expiresAt"], "properties": {"expiresAt": {"type": "integer", "minimum": 0}}},
+    "syncRequest": {"type": "object", "additionalProperties": false, "required": ["after", "limit"], "properties": {"after": {"$ref": "#/$defs/cursor"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}},
+    "eventAck": {"type": "object", "additionalProperties": false, "required": ["cursor"], "properties": {"cursor": {"$ref": "#/$defs/cursor"}}}
+  },
+  "type": "object", "additionalProperties": false, "required": ["handshake", "clientToServer", "serverToClient", "transport"],
+  "properties": {
+    "handshake": {"$ref": "#/$defs/handshake"},
+    "transport": {"const": "websocket-only"},
+    "clientToServer": {
+      "type": "object", "additionalProperties": false, "required": ["sync.request", "event.ack"],
+      "properties": {"sync.request": {"$ref": "#/$defs/syncRequest"}, "event.ack": {"$ref": "#/$defs/eventAck"}}
+    },
+    "serverToClient": {
+      "type": "object", "additionalProperties": false, "required": ["inbox.changed", "presence.changed", "session.revoked", "session.expiring"],
+      "properties": {"inbox.changed": {"$ref": "#/$defs/inboxChanged"}, "presence.changed": {"$ref": "#/$defs/presenceChanged"}, "session.revoked": {"$ref": "#/$defs/sessionRevoked"}, "session.expiring": {"$ref": "#/$defs/sessionExpiring"}}
+    }
+  }
+}

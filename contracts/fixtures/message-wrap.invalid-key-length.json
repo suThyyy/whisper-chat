@@ -1,0 +1,21 @@
+{
+  "version": "wc-e2ee-v1",
+  "suite": "X25519-HKDFSHA256-A256GCM-Ed25519",
+  "header": {
+    "chatId": "30000000-0000-4000-8000-000000000001",
+    "messageId": "40000000-0000-4000-8000-000000000003",
+    "senderUserId": "10000000-0000-4000-8000-000000000010",
+    "senderDeviceId": "10000000-0000-4000-8000-000000000001",
+    "senderKeyVersion": 1,
+    "senderCounter": "3",
+    "type": "text",
+    "clientSentAt": 1794864000000,
+    "expiresAt": null,
+    "rosterRevision": {"membershipVersion": 1, "deviceVersions": [{"userId": "10000000-0000-4000-8000-000000000010", "version": 1}]},
+    "rosterHash": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU"
+  },
+  "recipients": [{"userId": "10000000-0000-4000-8000-000000000010", "deviceId": "10000000-0000-4000-8000-000000000001", "keyVersion": 1}],
+  "payload": {"nonce": "AQEBAQEBAQEBAQEB", "ciphertext": "ZGVtby1jaXBoZXJ0ZXh0", "tag": "AgICAgICAgICAgICAgICAg"},
+  "wraps": [{"userId": "10000000-0000-4000-8000-000000000010", "deviceId": "10000000-0000-4000-8000-000000000001", "keyVersion": 1, "salt": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM", "nonce": "BAQEBAQEBAQEBAQE", "ciphertext": "dG9vLXNob3J0", "tag": "BgYGBgYGBgYGBgYGBgYGBg"}],
+  "signature": "CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCw"
+}

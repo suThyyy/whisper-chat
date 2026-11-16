@@ -1,0 +1,5 @@
+{
+  "note": "Schema-validity is not enough: server policy rejects expiresAt less than 60 seconds after receipt.",
+  "clientSentAt": 1794864000000,
+  "expiresAt": 1794864001000
+}

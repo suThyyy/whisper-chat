@@ -1,0 +1,45 @@
+{
+  "name": "Negative cases for wc-e2ee-v1 primitives (derived from the positive vectors)",
+  "source": [
+    "https://www.rfc-editor.org/rfc/rfc7748#section-6.1 (all-zero shared secret check)",
+    "https://www.rfc-editor.org/rfc/rfc7748#section-7",
+    "https://cr.yp.to/ecdh.html#validate (list of small-order Curve25519 points)",
+    "https://csrc.nist.gov/pubs/sp/800/38/d/final (GCM authentication: any modification must fail)"
+  ],
+  "notes": "Mutations are applied by the test runner to the referenced base vector. Every case must be rejected (throw / verify=false), never return plaintext. X25519 low-order inputs must either throw or yield all-zero, which the protocol layer must reject (plan section 5: reject invalid/all-zero).",
+  "aesGcm": {
+    "baseVector": "gcm-spec-tc16",
+    "mutations": [
+      { "id": "gcm-tag-bitflip", "field": "tag", "op": "flipBit", "byte": 0, "bit": 0 },
+      { "id": "gcm-tag-last-bitflip", "field": "tag", "op": "flipBit", "byte": 15, "bit": 7 },
+      { "id": "gcm-ciphertext-bitflip", "field": "ciphertext", "op": "flipBit", "byte": 0, "bit": 0 },
+      { "id": "gcm-wrong-nonce", "field": "iv", "op": "flipBit", "byte": 11, "bit": 0 },
+      { "id": "gcm-wrong-aad", "field": "aad", "op": "flipBit", "byte": 0, "bit": 0 },
+      { "id": "gcm-missing-aad", "field": "aad", "op": "replace", "value": "" },
+      { "id": "gcm-truncated-tag", "field": "tag", "op": "truncate", "length": 12 },
+      { "id": "gcm-wrong-key", "field": "key", "op": "flipBit", "byte": 31, "bit": 0 }
+    ]
+  },
+  "ed25519": {
+    "baseVector": "rfc8032-7.1-test3",
+    "mutations": [
+      { "id": "ed25519-signature-bitflip", "field": "signature", "op": "flipBit", "byte": 0, "bit": 0 },
+      { "id": "ed25519-message-bitflip", "field": "message", "op": "flipBit", "byte": 0, "bit": 0 },
+      { "id": "ed25519-wrong-public-key", "field": "publicKey", "op": "replaceFromVector", "vector": "rfc8032-7.1-test2" },
+      { "id": "ed25519-truncated-signature", "field": "signature", "op": "truncate", "length": 63 }
+    ]
+  },
+  "x25519LowOrderPublicKeys": {
+    "privateKeyFrom": "rfc7748-6.1 alicePrivate",
+    "expected": "throw or all-zero shared secret; protocol layer MUST reject",
+    "points": [
+      { "id": "u-0", "u": "0000000000000000000000000000000000000000000000000000000000000000" },
+      { "id": "u-1", "u": "0100000000000000000000000000000000000000000000000000000000000000" },
+      { "id": "order-8-a", "u": "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800" },
+      { "id": "order-8-b", "u": "5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157" },
+      { "id": "u-p-minus-1", "u": "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f" },
+      { "id": "u-p", "u": "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f" },
+      { "id": "u-p-plus-1", "u": "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f" }
+    ]
+  }
+}

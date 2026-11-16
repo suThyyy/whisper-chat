@@ -1,0 +1,18 @@
+{
+  auto_https off
+  admin off
+}
+
+:{$GATEWAY_PORT} {
+  tls /etc/caddy/certs/server.crt /etc/caddy/secrets/server.key
+  reverse_proxy gateway:3000
+  header {
+    -Server
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+  }
+  log {
+    output stdout
+    format json
+  }
+}

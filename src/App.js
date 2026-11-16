@@ -104,9 +104,22 @@ const RootNavigator = () => {
   return <NavigationContainer>{user ? <MainStack /> : <AuthStack />}</NavigationContainer>;
 };
 
+/* global __DEV__ */
 const App = () => {
   useEffect(() => {
     configureNotifications();
+
+    if (__DEV__ || process.env.EXPO_PUBLIC_RUN_PIN_TEST === 'true') {
+      if (process.env.EXPO_PUBLIC_RUN_PIN_TEST === 'true') {
+        import('./dev/netSecSpike')
+          .then(({ runNetworkSecurityTest }) => {
+            runNetworkSecurityTest?.();
+          })
+          .catch((err) => {
+            console.error('[netSecSpike] Failed to load:', err);
+          });
+      }
+    }
   }, []);
 
   return (
