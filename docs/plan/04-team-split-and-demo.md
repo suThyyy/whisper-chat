@@ -155,7 +155,8 @@ Các mục còn lại để sẵn, giảng viên hỏi thì mở ra. Có video q
 - *Server có đọc được tin không?* Không — chỉ có ciphertext và khóa công khai; khóa riêng nằm trên thiết bị.
 - *Vì sao GCM chứ không CBC?* GCM là mã hóa có xác thực (AEAD): vừa bí mật vừa phát hiện sửa đổi; CBC cần thêm MAC riêng, dễ dính padding oracle.
 - *Nonce trùng thì sao?* GCM trùng nonce với cùng khóa là thảm họa (lộ XOR plaintext, giả mạo tag) → mỗi lần mã hóa sinh nonce ngẫu nhiên mới, mỗi tin một khóa `CK` mới.
-- *Có forward secrecy không?* **Không** (dùng khóa tĩnh); nếu lộ khóa riêng thiết bị thì đọc được tin cũ gửi tới thiết bị đó. Hướng phát triển: X3DH + Double Ratchet như Signal.
+- *Có forward secrecy không?* Bản chính **không** (dùng khóa tĩnh); nếu lộ khóa riêng thiết bị thì đọc được tin cũ gửi tới thiết bị đó. Hướng phát triển: X3DH + Double Ratchet như Signal (xem slide "Giới hạn & hướng phát triển"). Nếu PoC `poc/double-ratchet/` đã xong (Amendment A3): "nhóm đã hiện thực thử Double Ratchet, có test chứng minh forward secrecy và post-compromise security; bước tiếp theo là tích hợp".
+- *Sao không dùng hậu lượng tử / MLS?* Chưa có thư viện ML-KEM/MLS ổn định cho React Native; nhóm ≤10 người × 3 thiết bị thì bọc khóa từng thiết bị (≤30 wrap/tin) là đủ, MLS chỉ có lợi ở nhóm rất lớn.
 - *Làm sao biết server không tráo khóa công khai?* So safety number/QR ngoài kênh; khóa đổi → cảnh báo.
 - *Tin tự hủy có xóa được trên máy người nhận nếu họ chụp màn hình?* Không đảm bảo — đã chặn chụp màn hình trong app nhưng không chống được camera khác; nói rõ giới hạn.
 

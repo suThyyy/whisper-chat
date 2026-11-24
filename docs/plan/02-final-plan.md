@@ -26,6 +26,11 @@
 > 9. Giữ quyết định **không khóa vĩnh viễn tài khoản** (chỉ backoff lũy tiến + rate limit) để chống DoS khóa tài khoản người khác; giải thích rõ trong báo cáo. 2FA/TOTP/Captcha vẫn ngoài scope — duyệt thiết bị mới bằng thiết bị tin cậy đóng vai trò yếu tố thứ hai.
 >
 > **Thứ tự ưu tiên khi thiếu thời gian:** 8 chức năng + 10 cơ chế trong đề cương (kể cả A1) → A2 mục 1–3, 8 → A2 mục 4–7. Không cắt mục nào trong đề cương đã nộp giảng viên.
+>
+> **Amendment A3 (24/11/2026) — Forward secrecy / Double Ratchet:**
+> 1. **MUST (báo cáo, không đụng code):** mục "Giới hạn & hướng phát triển" trong báo cáo/slide: sơ đồ X3DH + Double Ratchet; định nghĩa forward secrecy và post-compromise security; vì sao `wc-e2ee-v1` (khóa tĩnh) chưa có; nâng cấp sẽ đổi gì (ephemeral key, signed/one-time prekey, chain key, xóa khóa cũ, xử lý tin sai thứ tự); vì sao không dùng PQ (PQXDH/PQ3) và MLS ở quy mô ≤10 người × 3 thiết bị. Owner: Bạn (Lát 2).
+> 2. **COULD (chỉ bắt đầu khi checkpoint 27/11 đạt đủ 8 chức năng + 10 cơ chế):** PoC Double Ratchet độc lập tại `poc/double-ratchet/` (JS thuần, `@noble/*`), **không tích hợp vào app, không đổi contract**. Test bắt buộc: (a) mã hóa/giải mã hội thoại 2 chiều nhiều lượt; (b) tin đến sai thứ tự trong giới hạn skipped keys; (c) **forward secrecy** — lộ trạng thái hiện tại không giải mã được tin cũ đã xóa khóa; (d) **post-compromise** — sau một vòng DH ratchet mới, trạng thái bị lộ không giải mã được tin mới; (e) tag/header bị sửa → từ chối. Tham chiếu spec Signal Double Ratchet. Owner: Bạn (giao agent).
+> 3. Không làm: tích hợp ratchet vào app, PQ, MLS, Sender Keys trong đồ án này.
 
 Ngày chốt thiết kế: 16/11/2026. Áp dụng quyết định user và D1–D5 trong `01d-lead-review-2.md`; thay thế phương án Firebase/Functions/custom-token và phạm vi chỉ 1-1 trong các bản trước. Đây là **kế hoạch thực hiện**, không phải báo cáo đã triển khai. Lượt này chỉ tạo/cập nhật hai tài liệu `01c-codex-rebuttal.md` và file này, không sửa source.
 
