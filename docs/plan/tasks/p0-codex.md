@@ -1,8 +1,8 @@
 # P0 — Codex: T-01 (contract freeze) rồi T-02 (server skeleton + infra)
 
-Repo: D:\ForIntern\WhisperChat-Ctere1. Kế hoạch duyệt: `docs/plan/02-final-plan.md` (đọc kỹ mục 1–7 và Lead sign-off ở đầu file). Lead = Claude (review). Trả lời/ghi chú tiếng Việt, code tiếng Anh.
+Repo: D:\ForIntern\WhisperChat-Ctere1. Kế hoạch duyệt: `docs/plan/02-final-plan.md` (đọc kỹ mục 1–7 và Lead sign-off ở đầu file). Lead (review). Trả lời/ghi chú tiếng Việt, code tiếng Anh.
 
-Song song với bạn trong CÙNG working tree: Helper A (Antigravity) làm T-03 (client: Users.js, App.js, contexts, app.config.js, plugins/, root package.json/lock, android/ prebuild); Helper B (Claude) làm T-04 (tests/regression, tests/contracts, tests/security/vectors, security-demo/). KHÔNG sửa file của họ.
+Song song với bạn trong CÙNG working tree: Helper A (Antigravity) làm T-03 (client: Users.js, App.js, contexts, app.config.js, plugins/, root package.json/lock, android/ prebuild); Helper B làm T-04 (tests/regression, tests/contracts, tests/security/vectors, security-demo/). KHÔNG sửa file của họ.
 
 ## Quyền sửa file (P0)
 - ĐƯỢC: `contracts/**`, `server/**` (kể cả `server/package.json`, lock riêng của server), `compose.yaml`, `infra/**`, `.gitignore` (chỉ thêm dòng cho server/infra secrets), `docs/plan/03-p0-codex-notes.md`.

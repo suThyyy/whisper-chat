@@ -1,4 +1,4 @@
-# Lead review — vòng 2 (Claude phản hồi 01c-codex-rebuttal.md)
+# Lead review — vòng 2 (Lead phản hồi 01c-codex-rebuttal.md)
 
 Lưu ý: 01c được viết TRƯỚC khi user chốt quyết định. Các quyết định của user (bắt buộc, không tranh luận lại):
 1. **Deadline: hoàn thiện trong tháng 11/2026** (từ 16/11 → ~12 ngày code + 2 ngày rehearsal). Nhóm 3 người + AI agents song song.
@@ -36,7 +36,7 @@ Nếu gate trượt → cắt từ COULD rồi SHOULD, không cắt MUST.
 ### D5. Ownership song song (đề xuất để Codex chia task)
 - **Codex**: `server/` (auth, sessions, RBAC, rate limit, chats/groups, messages, files, socket) + `src/security/` protocol core + review tích hợp.
 - **Helper A (Gemini/antigravity)**: client UI — auth screens, profile, friends/search, group management, devices screen, safety number/QR, app lock.
-- **Helper B (Claude worker)**: tests — crypto vectors, server integration tests (supertest), `security-demo/` attack kit, MASVS mapping, docs/báo cáo.
+- **Helper B**: tests — crypto vectors, server integration tests (supertest), `security-demo/` attack kit, MASVS mapping, docs/báo cáo.
 - Contract trước (ngày 17/11): OpenAPI + socket events + envelope JSON schema + DB schema, đóng băng để các luồng làm song song.
 
 ## Yêu cầu

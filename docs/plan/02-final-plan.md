@@ -1,6 +1,6 @@
 # Kế hoạch hợp nhất — WhisperChat Secure, hạn 30/11/2026
 
-> **Lead sign-off (Claude, 16/11/2026): DUYỆT** với các chốt sau cho mục 10:
+> **Lead sign-off (16/11/2026): DUYỆT** với các chốt sau cho mục 10:
 > 1. Chấp nhận đưa pinning REST+WSS lên **MUST** (vì demo f là MUST).
 > 2. Chấp nhận định nghĩa revoke = DB commit + disconnect có bound đo được (≤1s thường, ≤5s sweep).
 > 3. Helper B **không** viết server code mà chính B kiểm thử (giữ độc lập kiểm chứng). Nếu Codex trễ critical path, lead sẽ mở thêm worker server riêng (Helper C) nhận trọn module chưa bắt đầu (ưu tiên T-19 presence/push, rồi T-16 files).
@@ -36,7 +36,7 @@ Ngày chốt thiết kế: 16/11/2026. Áp dụng quyết định user và D1–
 
 ## 1. Phạm vi, deadline và tiêu chuẩn hoàn tất
 
-Nhóm 3 người, Codex chính, Helper A (Gemini/antigravity) làm client, Helper B (Claude worker) làm tests/demo; mỗi luồng có một thành viên nhóm thật kiểm tra kết quả. Ngày 17–28/11 là 12 ngày code tập trung, bao gồm cuối tuần; 29–30/11 chỉ rehearsal và sửa lỗi chặn demo, không thêm feature. Hợp đồng đóng băng cuối 17/11; checkpoint 18, 21, 24, 27/11. Không có worker nào được khởi chạy trong lượt viết kế hoạch này.
+Nhóm 3 người, Codex chính, Helper A (Gemini/antigravity) làm client, Helper B làm tests/demo; mỗi luồng có một thành viên nhóm thật kiểm tra kết quả. Ngày 17–28/11 là 12 ngày code tập trung, bao gồm cuối tuần; 29–30/11 chỉ rehearsal và sửa lỗi chặn demo, không thêm feature. Hợp đồng đóng băng cuối 17/11; checkpoint 18, 21, 24, 27/11. Không có worker nào được khởi chạy trong lượt viết kế hoạch này.
 
 | Mức | Phạm vi |
 |---|---|

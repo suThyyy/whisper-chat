@@ -1,6 +1,6 @@
 # P0 Helper B (T-04) — ghi chú, bằng chứng và test plan T-09/T-15/T-21
 
-Ngày: 16/11/2026. Người viết: Helper B (Claude worker, tests/demo). Phạm vi sửa: `tests/regression/**`, `tests/contracts/**`, `tests/security/**` (vectors + `vectors.test.js`), `security-demo/**`, file này. Không sửa `src/**`, `server/**`, `contracts/**`, root `package.json`/lock, `jest.config.js`. Không commit.
+Ngày: 16/11/2026. Người viết: Helper B (tests/demo). Phạm vi sửa: `tests/regression/**`, `tests/contracts/**`, `tests/security/**` (vectors + `vectors.test.js`), `security-demo/**`, file này. Không sửa `src/**`, `server/**`, `contracts/**`, root `package.json`/lock, `jest.config.js`. Không commit.
 
 ## 1. Kết quả `npm test`
 

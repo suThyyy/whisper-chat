@@ -2,7 +2,7 @@
 
 **Ngày cập nhật:** 16/11/2026  
 **Người thực hiện:** Helper A (Client / Android)  
-**Lead review:** Claude  
+**Lead review:** Lead nhóm  
 
 ---
 
@@ -317,7 +317,7 @@ Theo yêu cầu kiểm thử độc lập từ Lead:
 
 ---
 
-## Kết quả cuối — Tích hợp CA/pins thật (2026-11-16, Claude tiếp quản từ Codex)
+## Kết quả cuối — Tích hợp CA/pins thật (2026-11-16, Helper tiếp quản từ Codex)
 
 ### Thay đổi
 - `plugins/withNetworkSecurity.js`: đọc `infra/public/ca.crt` (kiểm PEM) → `res/raw/custom_ca.crt`; đọc `infra/public/pins.json` (`host`, `pins`, `expiration` YYYY-MM-DD; pin phải là base64 SHA-256 32 byte). Thiếu/sai file → prebuild throw lỗi rõ ràng. Domains: `host` (whisperchat.local, includeSubdomains=true), `10.0.2.2`, `192.168.52.74` (IP → includeSubdomains=false), cộng `EXPO_PUBLIC_GATEWAY_HOST` nếu có. Base-config chỉ trust system CA, cấm cleartext.

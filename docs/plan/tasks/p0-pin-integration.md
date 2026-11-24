@@ -1,6 +1,6 @@
 # P0 — Hoàn tất tích hợp CA/pins thật vào app (tiếp quản từ Codex hết quota)
 
-Repo: D:\ForIntern\WhisperChat-Ctere1. Lead = Claude. Ghi chú tiếng Việt.
+Repo: D:\ForIntern\WhisperChat-Ctere1. Lead (review). Ghi chú tiếng Việt.
 
 ## Trạng thái hiện tại (Codex làm dở)
 - `plugins/withNetworkSecurity.js` đã được sửa để đọc `infra/public/ca.crt` + `infra/public/pins.json`; CA spike `plugins/certs/ca.crt` đã xóa; `app.config.js` đang được sửa. KIỂM TRA LẠI và hoàn thiện, không viết lại từ đầu nếu đã đúng.

@@ -1,6 +1,6 @@
 # Khảo sát khả thi và khoảng trống bảo mật WhisperChat
 
-Ngày khảo sát: 16/11/2026. Commit: `24a1900`. Vai trò: Codex khảo sát; Claude lead/reviewer quyết định kế hoạch sau phản biện. Đây là đề xuất, chưa phải phê duyệt triển khai.
+Ngày khảo sát: 16/11/2026. Commit: `24a1900`. Vai trò: Codex khảo sát; Lead/reviewer quyết định kế hoạch sau phản biện. Đây là đề xuất, chưa phải phê duyệt triển khai.
 
 ## 1. Phạm vi, kiến trúc và trạng thái chạy
 

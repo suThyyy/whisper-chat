@@ -1,6 +1,6 @@
 # P0 — Helper B (tests/demo): T-04
 
-Repo: D:\ForIntern\WhisperChat-Ctere1. Kế hoạch duyệt: `docs/plan/02-final-plan.md` (đọc mục 5 protocol, 7 bảng T-04/T-09/T-15/T-21, 8 attack kit). Lead = Claude (review). Ghi chú tiếng Việt, code tiếng Anh.
+Repo: D:\ForIntern\WhisperChat-Ctere1. Kế hoạch duyệt: `docs/plan/02-final-plan.md` (đọc mục 5 protocol, 7 bảng T-04/T-09/T-15/T-21, 8 attack kit). Lead (review). Ghi chú tiếng Việt, code tiếng Anh.
 
 Song song trong CÙNG working tree: Codex làm `contracts/**`, `server/**`, `compose.yaml`, `infra/**`; Helper A làm `src/screens/Users.js`, `src/App.js`, `src/contexts/**`, `app.config.js`, `plugins/**`, root `package.json`/lock. KHÔNG sửa file của họ.
 

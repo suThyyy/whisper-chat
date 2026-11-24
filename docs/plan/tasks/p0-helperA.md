@@ -1,6 +1,6 @@
 # P0 — Helper A (client/Android): T-03
 
-Repo: D:\ForIntern\WhisperChat-Ctere1 (React Native 0.88 / Expo SDK 58, JS). Kế hoạch duyệt: `docs/plan/02-final-plan.md` (đọc mục 1, 2 "TLS, pinning", 3 "Enrollment và Android storage", 7 bảng task T-03). Lead = Claude (review). Ghi chú tiếng Việt, code tiếng Anh.
+Repo: D:\ForIntern\WhisperChat-Ctere1 (React Native 0.88 / Expo SDK 58, JS). Kế hoạch duyệt: `docs/plan/02-final-plan.md` (đọc mục 1, 2 "TLS, pinning", 3 "Enrollment và Android storage", 7 bảng task T-03). Lead (review). Ghi chú tiếng Việt, code tiếng Anh.
 
 Song song trong CÙNG working tree: Codex làm `contracts/**`, `server/**`, `compose.yaml`, `infra/**`; Helper B làm `tests/regression/**`, `tests/contracts/**`, `tests/security/**`, `security-demo/**`. KHÔNG sửa file của họ.
 

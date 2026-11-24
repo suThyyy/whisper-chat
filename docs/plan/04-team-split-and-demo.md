@@ -1,7 +1,7 @@
 # WhisperChat Secure — Chia việc theo người & Kịch bản demo
 
 Ngày lập: 24/11/2026 · Hạn: code xong **28/11**, tổng duyệt **29–30/11**.
-Căn cứ: `02-final-plan.md` (kèm Amendment A1, A2). Tài liệu này **ghi đè cột Owner** trong bảng task mục 7 của plan: từ nay owner là **người**, mỗi người tự điều khiển agent (Codex/Claude) cho phần của mình.
+Căn cứ: `02-final-plan.md` (kèm Amendment A1, A2). Tài liệu này **ghi đè cột Owner** trong bảng task mục 7 của plan: từ nay owner là **người**, mỗi người tự điều khiển AI coding agent cho phần của mình.
 
 > Nguyên tắc chia: giảng viên sẽ hỏi **từng người**, nên mỗi người sở hữu trọn một "lát dọc" gồm **cơ chế bảo mật + chức năng dùng cơ chế đó**, từ server → app → test → demo. Ai làm phần nào thì tự demo và tự trả lời câu hỏi phần đó. Ai cũng phải nắm **kiến trúc tổng** (mục 5) để trả lời câu hỏi chung.
 

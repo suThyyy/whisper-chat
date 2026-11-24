@@ -1,4 +1,4 @@
-# Lead review — vòng 1 (Claude phản biện bản khảo sát 01-codex-survey.md)
+# Lead review — vòng 1 (Lead phản biện bản khảo sát 01-codex-survey.md)
 
 Đánh giá chung: khảo sát chất lượng tốt, bằng chứng chính xác (đã spot-check: TDZ `handleName` ở `src/screens/Users.js:107/115` là thật; Rules deny-by-default và messages immutable đúng; `functions/` không tồn tại). Tuy nhiên kế hoạch đang tối ưu cho "sản phẩm thật" chứ chưa tối ưu cho **đồ án môn bảo mật mobile**: quá dài (5–8 tuần), phụ thuộc Cloud Functions (cần gói Blaze), và để 3/10 cơ chế (JWT/Refresh, Password hashing, Rate limiting) là "Firebase lo hộ" — rất khó ghi điểm khi giảng viên hỏi "code đâu?".
 
