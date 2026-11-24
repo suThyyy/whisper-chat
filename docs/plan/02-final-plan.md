@@ -5,6 +5,27 @@
 > 2. Chấp nhận định nghĩa revoke = DB commit + disconnect có bound đo được (≤1s thường, ≤5s sweep).
 > 3. Helper B **không** viết server code mà chính B kiểm thử (giữ độc lập kiểm chứng). Nếu Codex trễ critical path, lead sẽ mở thêm worker server riêng (Helper C) nhận trọn module chưa bắt đầu (ưu tiên T-19 presence/push, rồi T-16 files).
 > 4. Defaults policy (recall 10 phút, expiry 60s–24h, không chuyển history, kick/leave mất server history, logout giữ device identity) được dùng cho tới khi user phản đối.
+>
+> **Amendment A1 (24/11/2026) — đối chiếu với đề cương đã nộp giảng viên (phạm vi chỉ được bằng hoặc hơn):**
+> 1. F1: thêm **ảnh đại diện (avatar)** vào hồ sơ: upload qua gateway (không URL bên thứ ba), giới hạn kích thước/MIME, chỉ bạn bè/thành viên chung chat được tải → MUST (T-10 server, T-11 UI).
+> 2. F5: thêm **xóa toàn bộ cuộc trò chuyện phía mình** (`POST /chats/:id/clear` — đặt cursor ẩn mọi message ≤ seq hiện tại cho user) và **tìm kiếm tin nhắn cục bộ** trên dữ liệu đã giải mã trong máy (không gửi plaintext lên server) → MUST (T-17 server, T-18 UI).
+> 3. F6: **push notification khi app ở nền/bị OS dừng (FCM qua Expo Push, payload generic "Có tin nhắn mới")** nâng từ SHOULD lên **MUST** — vì đề cương ghi "thông báo tin nhắn" và Android sẽ cắt socket khi app ở nền. Chỉ force-stop là ngoại lệ được ghi rõ (T-19, T-20). Cần Firebase project chỉ cho FCM (miễn phí).
+> 4. S8: **màn hình Admin tối thiểu trong app** (chỉ hiện khi globalRole=admin: xem audit log, khóa/mở user) nâng từ COULD lên **MUST** để demo RBAC trực quan, kèm test user thường gọi API admin → 403 (T-11, T-15).
+> 5. S6: báo cáo/demo phải chứng minh rõ khóa nằm trong **Android Keystore**: SecureStore bọc bằng khóa AES trong Keystore; thêm kiểm tra/ghi nhận hardware-backed (StrongBox/TEE) nếu có; khóa mở biometric dùng `requireAuthentication` (T-07, T-21 g).
+> 6. S3: Caddy cấu hình **chỉ TLS 1.2/1.3**, HSTS; test TLS 1.0/1.1 bị từ chối (T-02 bổ sung, T-21).
+>
+> **Amendment A2 (24/11/2026) — sau khi đối chiếu đề tài các nhóm khác trong lớp L01 (Dang_ky_de_tai_L01.xlsx).** Các mục sau trở thành **MUST** (ghi đè mức SHOULD/COULD ở mục 1, 7, 8):
+> 1. **Chống chụp/quay màn hình + che Recent Apps**: FLAG_SECURE (`expo-screen-capture` hoặc config plugin) trên toàn app; màn hình đa nhiệm không lộ nội dung chat. Owner A (T-20, kéo sớm vào T-07). Bằng chứng: ảnh chụp màn hình bị đen, recents bị che.
+> 2. **Tắt sao lưu dữ liệu ứng dụng**: `android:allowBackup="false"` + `dataExtractionRules`/`fullBackupContent` loại trừ toàn bộ qua config plugin. Owner A (T-07). Bằng chứng: `adb backup`/merged manifest.
+> 3. **Hardening manifest/component**: quyền tối thiểu (liệt kê và lý do từng quyền), mọi activity/service/receiver không cần thiết `exported=false`, deep link (nếu có) chỉ nhận tham số đã validate, không có debug/cleartext trong release. Owner A thực hiện, B kiểm chứng (T-22). Bằng chứng: merged release manifest + checklist trong `docs/security/`.
+> 4. **Phát hiện Root/Emulator/Debugger**: cảnh báo và ghi audit (không phải hàng rào tuyệt đối); bản demo cho phép emulator qua cờ build riêng. Owner A (T-20). Bằng chứng: cảnh báo trên emulator/rooted image.
+> 5. **Xóa metadata EXIF/GPS của ảnh trước khi mã hóa** (re-encode ảnh ở máy gửi). Owner A (T-18) + C (attachments). Bằng chứng: ảnh nhận được không còn GPS/EXIF.
+> 6. **Tự xóa clipboard sau 30 giây** khi người dùng sao chép nội dung tin nhắn. Owner A (T-18).
+> 7. **Kiểm tra tệp phía client trước khi mã hóa**: giới hạn kích thước, MIME allowlist, đối chiếu magic bytes; báo cáo giải thích vì sao server không thể quét nội dung (E2EE). Owner C (attachments) + A (picker).
+> 8. **Release hardening có bằng chứng**: R8/ProGuard bật cho release, JS biên dịch Hermes bytecode, không log token/key/plaintext ở client (redaction), APK ký bằng release key riêng (không debug key). Owner A + C (T-22).
+> 9. Giữ quyết định **không khóa vĩnh viễn tài khoản** (chỉ backoff lũy tiến + rate limit) để chống DoS khóa tài khoản người khác; giải thích rõ trong báo cáo. 2FA/TOTP/Captcha vẫn ngoài scope — duyệt thiết bị mới bằng thiết bị tin cậy đóng vai trò yếu tố thứ hai.
+>
+> **Thứ tự ưu tiên khi thiếu thời gian:** 8 chức năng + 10 cơ chế trong đề cương (kể cả A1) → A2 mục 1–3, 8 → A2 mục 4–7. Không cắt mục nào trong đề cương đã nộp giảng viên.
 
 Ngày chốt thiết kế: 16/11/2026. Áp dụng quyết định user và D1–D5 trong `01d-lead-review-2.md`; thay thế phương án Firebase/Functions/custom-token và phạm vi chỉ 1-1 trong các bản trước. Đây là **kế hoạch thực hiện**, không phải báo cáo đã triển khai. Lượt này chỉ tạo/cập nhật hai tài liệu `01c-codex-rebuttal.md` và file này, không sửa source.
 
